@@ -52,3 +52,4 @@ terraform.tfstate.backup
 # Rust/Cargo
 Cargo.lock
 target/
+.env
