@@ -53,3 +53,10 @@ terraform.tfstate.backup
 Cargo.lock
 target/
 .env
+
+# terraform
+backend.tf
+providers.tf
+
+# cloud-function binary
+*.zip

@@ -29,6 +29,10 @@ func New() *Builder {
 
 func (b *Builder) WithEnv(env string) *Builder {
 	b.Env = env
+	if b.Env == "" {
+		b.logger.Info("No environment specified, defaulting to prod")
+		b.Env = "prod"
+	}
 	return b
 }
 

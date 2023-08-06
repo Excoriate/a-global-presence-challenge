@@ -8,6 +8,16 @@ includes:
         taskfile: ./DevEx/taskfile/Taskfile.common.yml
 
 
+vars:
+    PROJECT_ID: '{{default "labs-experiments-oss" .PROJECT_ID}}'
+    STACK: '{{default "" .STACK}}'
+    MODULE: '{{default "google-services" .MODULE}}'
+    FUNCTION: '{{default "trigger" .FUNCTION}}'
+    REGION: '{{default "europe-west4" .REGION}}'
+    LOCATION: '{{default "europe-west4" .LOCATION}}'
+
+
+
 tasks:
     default:
         cmds:
@@ -22,3 +32,37 @@ tasks:
         desc: Run all the pre-configured pre-commit hooks.
         cmds:
             - task: common:hooks
+
+    tf-gcp-init:
+        desc: Create and set a service account for TF, in GCP
+        cmds:
+            - ./scripts/gcp/create-tf-service-account.sh {{.PROJECT_ID}}
+
+    tg:
+        desc: Run Terragrunt commands
+        dir: infra/terraform/stacks
+        cmds:
+            - |
+              export TF_VAR_environment="sandbox" && \
+              export TF_VAR_region={{.REGION}} && \
+              export TF_VAR_location={{.LOCATION}} && \
+              export TF_VAR_project_id="{{.PROJECT_ID}}" && \
+              cd {{.STACK}}/{{.MODULE}} && ls -ltrah && terragrunt {{.CLI_ARGS}}
+
+
+    function-compile:
+        desc: Compile the function
+        dir: functions
+        cmds:
+            - |
+              cd {{.FUNCTION}}
+              if [ -f "go.mod" ]; then
+                go mod tidy
+                go mod vendor
+              fi
+
+              if [ -f "{{.FUNCTION}}.zip" ]; then
+                  rm {{.FUNCTION}}.zip
+              fi
+
+              go build -o {{.FUNCTION}} main.go
