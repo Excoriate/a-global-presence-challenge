@@ -15,6 +15,7 @@ type Shooter struct {
 	Cfg       *config.Config
 	Challenge *Challenge
 	Attempt   *Attempt
+	Errors    []error
 }
 
 type ShooterResponse struct {
@@ -29,6 +30,7 @@ type ShooterBuilder struct {
 	Challenge *Challenge
 	Attempt   *Attempt
 	Id        string
+	Errors    []error
 }
 
 func (b *ShooterBuilder) NewShooter() *Shooter {
@@ -49,6 +51,7 @@ func (b *ShooterBuilder) WithPresenceTokenFromDb() *ShooterBuilder {
 	client, err := firestore.NewClient(ctx, b.Cfg.ProjectId)
 	if err != nil {
 		b.Cfg.Logger.Error(fmt.Sprintf("Error creating firestore client: %s", err.Error()))
+		b.Errors = append(b.Errors, err)
 		return b
 	}
 
@@ -57,6 +60,7 @@ func (b *ShooterBuilder) WithPresenceTokenFromDb() *ShooterBuilder {
 	doc, err := client.Collection(b.Cfg.ChallengeDoc).Doc(b.Id).Get(ctx)
 	if err != nil {
 		b.Cfg.Logger.Error(fmt.Sprintf("Error getting document from firestore: %s", err.Error()))
+		b.Errors = append(b.Errors, err)
 		return b
 	}
 
@@ -64,6 +68,7 @@ func (b *ShooterBuilder) WithPresenceTokenFromDb() *ShooterBuilder {
 	err = doc.DataTo(&attempt)
 	if err != nil {
 		b.Cfg.Logger.Error(fmt.Sprintf("Error converting firestore document to struct: %s", err.Error()))
+		b.Errors = append(b.Errors, err)
 		return b
 	}
 
@@ -79,6 +84,7 @@ func (b *ShooterBuilder) WithNewAttempt() *ShooterBuilder {
 	client, err := firestore.NewClient(ctx, b.Cfg.ProjectId)
 	if err != nil {
 		b.Cfg.Logger.Error(fmt.Sprintf("Error creating firestore client: %s", err.Error()))
+		b.Errors = append(b.Errors, err)
 		return b
 	}
 
@@ -101,13 +107,18 @@ func (b *ShooterBuilder) WithNewAttempt() *ShooterBuilder {
 
 	if err != nil {
 		b.Cfg.Logger.Error(fmt.Sprintf("Error updating document in firestore: %s", err.Error()))
+		b.Errors = append(b.Errors, err)
 		return b
 	}
 
 	return b
 }
 
-func (b *ShooterBuilder) Complete() (*Shooter, error) {
+func (b *ShooterBuilder) Complete() (*Shooter, []error) {
+	if len(b.Errors) > 0 {
+		return nil, b.Errors
+	}
+
 	return &Shooter{
 		Id:        utils.GetUUID(),
 		AttemptId: utils.GetUUID(),

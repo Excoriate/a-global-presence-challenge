@@ -95,13 +95,13 @@ func (b *Builder) WithDotEnv() *Builder {
 	return b
 }
 
-func (b *Builder) Build() (*Config, error) {
+func (b *Builder) Build() (*Config, []error) {
 	if len(b.Errors) > 0 {
 		for _, err := range b.Errors {
 			b.logger.Error("Error(s) found in builder", zap.Error(err))
 		}
 
-		return nil, errors.New("error(s) found in builder")
+		return nil, b.Errors
 	}
 
 	return &Config{

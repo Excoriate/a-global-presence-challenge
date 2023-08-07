@@ -117,3 +117,11 @@ A map of environment variables that will be passed to the function. E.g.: {"ENV_
 EOF
   default = []
 }
+
+variable "access_token_env_var" {
+  type        = string
+  description = <<EOF
+The access token that will be used to authenticate the function to the other services. E.g.: "ya29.c.Kl6SBw..."
+EOF
+  default = null
+}

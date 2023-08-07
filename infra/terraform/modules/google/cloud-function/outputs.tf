@@ -45,3 +45,8 @@ output "function_deploy_combinations" {
   value       = [local.combinations]
   description = "Combinations of locations and stacks."
 }
+
+output "function_env_vars" {
+  value       = local.env_vars_map
+  description = "Environment variables of the function"
+}

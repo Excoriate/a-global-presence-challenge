@@ -132,12 +132,13 @@ func (b *ChallengeBuilder) WithHeaders(headers []string) *ChallengeBuilder {
 	return b
 }
 
-func (b *ChallengeBuilder) Build() (*Challenge, error) {
+func (b *ChallengeBuilder) Build() (*Challenge, []error) {
 	if len(b.Errors) > 0 {
 		for _, err := range b.Errors {
 			b.Cfg.Logger.Error("Error(s) found in builder", zap.Error(err))
 		}
-		return nil, fmt.Errorf("error(s) found in builder")
+
+		return nil, b.Errors
 	}
 
 	url := &Challenge{

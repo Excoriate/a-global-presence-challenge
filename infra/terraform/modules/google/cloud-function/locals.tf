@@ -59,7 +59,12 @@ locals {
     }
   ]
 
-  env_vars = concat(local.default_environment_variables, var.environment_variables)
+  access_token_env_var = !local.is_enabled ? null : [{
+    name = "ACCESS_TOKEN"
+    value = var.access_token_env_var  == null ? "" : var.access_token_env_var
+  }]
+
+  env_vars = concat(local.default_environment_variables, var.environment_variables, local.access_token_env_var)
 
     env_vars_map = !local.is_enabled ? null : {
         for e in local.env_vars : e["name"] => e["value"]

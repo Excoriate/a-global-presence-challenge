@@ -17,52 +17,57 @@ func init() {
 	functions.HTTP("trigger", trigger)
 }
 
-func sendErr(w http.ResponseWriter, errMsg string) {
+func sendErr(w http.ResponseWriter, status string, errors []error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 
-	jsonResp := map[string]string{
-		"status": errMsg,
+	jsonResp := map[string]interface{}{
+		"status": status,
+	}
+
+	for i, err := range errors {
+		jsonResp[fmt.Sprintf("error_%d", i)] = err.Error()
 	}
 
 	json.NewEncoder(w).Encode(jsonResp)
+	return
 }
 
 func trigger(w http.ResponseWriter, r *http.Request) {
 	// Getting and building the configuration.
-	cfg, err := config.New().
+	cfg, errs := config.New().
 		WithEnv(os.Getenv("ENVIRONMENT")).
 		WithScannedEnvVars().
 		WithRequiredConfig().
 		Build()
 
-	if err != nil {
-		sendErr(w, fmt.Sprintf("Failed to build config: %v\n", err))
+	if errs != nil {
+		sendErr(w, "Failed to build config", errs)
 		return
 	}
 
 	// Configure the Challenge attempt.
 	challengeClient := hackattic.New(cfg)
-	challengeCfg, err := challengeClient.
+	challengeCfg, errs := challengeClient.
 		WithHeaders([]string{}).
 		WithHTTPClient().
 		WithAccessToken().
 		Build()
 
-	if err != nil {
-		sendErr(w, fmt.Sprintf("Failed to build challenge config: %v\n", err))
+	if errs != nil {
+		sendErr(w, "Failed to build challenge configuration", errs)
 		return
 	}
 
 	// Configure a new attempt.
 	attempt := hackattic.NewAttempt(cfg)
-	attemptCfg, err := attempt.
+	attemptCfg, errs := attempt.
 		WithChallenge(challengeCfg).
 		WithNewPresenceToken().
 		Build()
 
-	if err != nil {
-		sendErr(w, fmt.Sprintf("Failed to build attempt config: %v\n", err))
+	if errs != nil {
+		sendErr(w, "Failed to build attempt configuration", errs)
 		return
 	}
 
@@ -70,15 +75,15 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	// Firestore client
-	client, err := firestore.NewClient(ctx, cfg.ProjectId)
-	if err != nil {
-		sendErr(w, fmt.Sprintf("Failed to create firestore client: %v\n", err))
+	client, dbErr := firestore.NewClient(ctx, cfg.ProjectId)
+	if dbErr != nil {
+		sendErr(w, fmt.Sprintf("Failed to create firestore client: %v\n", dbErr), []error{dbErr})
 		return
 	}
 
 	defer client.Close()
 
-	result, _, err := client.Collection(cfg.ChallengeDoc).Add(ctx, map[string]interface{}{
+	result, _, docErr := client.Collection(cfg.ChallengeDoc).Add(ctx, map[string]interface{}{
 		"attempt_id":    utils.GetUUID(),
 		"accessToken":   challengeCfg.AccessToken,
 		"presenceToken": attemptCfg.PresenceToken,
@@ -96,8 +101,8 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 		"result":           "",
 	})
 
-	if err != nil {
-		sendErr(w, fmt.Sprintf("Failed to create document: %v\n", err))
+	if docErr != nil {
+		sendErr(w, "Failed to create document", []error{docErr})
 		return
 	}
 

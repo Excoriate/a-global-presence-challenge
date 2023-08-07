@@ -68,14 +68,14 @@ func (b *AttemptBuilder) WithNewPresenceToken() *AttemptBuilder {
 	return b
 }
 
-func (b *AttemptBuilder) Build() (*Attempt, error) {
+func (b *AttemptBuilder) Build() (*Attempt, []error) {
 	if len(b.Errors) > 0 {
 		b.Cfg.Logger.Error(fmt.Sprintf("Cannot create attempt with errors: %v", b.Errors))
 		for _, err := range b.Errors {
 			b.Cfg.Logger.Error(fmt.Sprintf("Error: %s", err.Error()))
 		}
 
-		return nil, fmt.Errorf("cannot create attempt with errors")
+		return nil, b.Errors
 	}
 
 	return &Attempt{

@@ -15,6 +15,8 @@ vars:
     FUNCTION: '{{default "trigger" .FUNCTION}}'
     REGION: '{{default "europe-west4" .REGION}}'
     LOCATION: '{{default "europe-west4" .LOCATION}}'
+    ACCESS_TOKEN: '{{default "" .ACCESS_TOKEN}}'
+    ENVIRONMENT: '{{default "sandbox" .ENVIRONMENT}}'
 
 
 
@@ -47,6 +49,17 @@ tasks:
               export TF_VAR_region={{.REGION}} && \
               export TF_VAR_project_id="{{.PROJECT_ID}}" && \
               cd {{.STACK}}/{{.MODULE}} && ls -ltrah && terragrunt {{.CLI_ARGS}}
+
+    tg-trigger:
+        desc: Deploy the trigger function
+        dir: infra/terraform/stacks/cloud-function/trigger
+        cmds:
+            - |
+              export TF_VAR_environment="{{.ENVIRONMENT}}" && \
+              export TF_VAR_region={{.REGION}} && \
+              export TF_VAR_project_id="{{.PROJECT_ID}}" && \
+              export TF_VAR_access_token_env_var={{.ACCESS_TOKEN}} && \
+              terragrunt {{.CLI_ARGS}}
 
 
     function-compile:

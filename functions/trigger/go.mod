@@ -14,4 +14,4 @@ require (
 	go.uber.org/zap v1.10.0 // indirect
 )
 
-replace github.com/Excoriate/a-global-presence-challenge => ../..
+//replace github.com/Excoriate/a-global-presence-challenge => ../..
