@@ -90,6 +90,7 @@ resource "google_cloudfunctions2_function" "this" {
     ingress_settings = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
     service_account_email = google_service_account.this[each.key].email
+    environment_variables = local.env_vars_map
   }
 
   project = data.google_project.this[each.key].project_id

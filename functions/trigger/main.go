@@ -17,20 +17,21 @@ func init() {
 	functions.HTTP("trigger", trigger)
 }
 
-func sendErr(w http.ResponseWriter, status string, errors []error) {
+func sendErr(w http.ResponseWriter, status string, errs []error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
 
-	jsonResp := map[string]interface{}{
-		"status": status,
+	var errMsgs []string
+	for _, err := range errs {
+		errMsgs = append(errMsgs, err.Error())
 	}
 
-	for i, err := range errors {
-		jsonResp[fmt.Sprintf("error_%d", i)] = err.Error()
+	jsonResp := map[string]interface{}{
+		"status": status,
+		"errors": errMsgs,
 	}
 
 	json.NewEncoder(w).Encode(jsonResp)
-	return
 }
 
 func trigger(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +42,7 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 		WithRequiredConfig().
 		Build()
 
-	if errs != nil {
+	if errs != nil && len(errs) > 0 {
 		sendErr(w, "Failed to build config", errs)
 		return
 	}
@@ -54,7 +55,7 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 		WithAccessToken().
 		Build()
 
-	if errs != nil {
+	if errs != nil && len(errs) > 0 {
 		sendErr(w, "Failed to build challenge configuration", errs)
 		return
 	}
@@ -66,7 +67,7 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 		WithNewPresenceToken().
 		Build()
 
-	if errs != nil {
+	if errs != nil && len(errs) > 0 {
 		sendErr(w, "Failed to build attempt configuration", errs)
 		return
 	}
@@ -77,7 +78,7 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 	// Firestore client
 	client, dbErr := firestore.NewClient(ctx, cfg.ProjectId)
 	if dbErr != nil {
-		sendErr(w, fmt.Sprintf("Failed to create firestore client: %v\n", dbErr), []error{dbErr})
+		sendErr(w, "Failed to create Firestore client", []error{dbErr})
 		return
 	}
 
