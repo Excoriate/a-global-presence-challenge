@@ -2,6 +2,7 @@ package shooter
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Excoriate/a-global-presence-challenge/pkg/config"
 	"github.com/Excoriate/a-global-presence-challenge/pkg/hackattic"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
@@ -31,12 +32,6 @@ func sendErr(w http.ResponseWriter, status string, errs []error) {
 }
 
 func shooter(w http.ResponseWriter, r *http.Request) {
-	presenceTokenReceived := r.URL.Query().Get("presence_token")
-	if presenceTokenReceived == "" {
-		sendErr(w, "No presence token received", []error{})
-		return
-	}
-
 	// Getting and building the configuration.
 	cfg, errs := config.New().
 		WithEnv(os.Getenv("ENVIRONMENT")).
@@ -49,8 +44,6 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cfg.Logger.Info("Presence token received: " + presenceTokenReceived)
-
 	// Configure the Challenge attempt.
 	challengeClient := hackattic.New(cfg)
 	challengeCfg, errs := challengeClient.
@@ -62,6 +55,18 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 	if errs != nil && len(errs) > 0 {
 		sendErr(w, "Failed to build challenge configuration", errs)
 		return
+	}
+
+	presenceTokenNew, _ := challengeCfg.HttpClient.Get(challengeCfg.APIGetPresenceToken)
+	defer presenceTokenNew.Body.Close()
+	freshNewPresenceToken := hackattic.PresenceTokenResponse{}
+
+	cfg.Logger.Info(fmt.Sprintf("Presence token response: %v\n",
+		freshNewPresenceToken.PresenceToken))
+
+	err := json.NewDecoder(presenceTokenNew.Body).Decode(&freshNewPresenceToken)
+	if err != nil {
+		cfg.Logger.Error(fmt.Sprintf("Failed to decode presence token: %v\n", err))
 	}
 
 	// Configure a new attempt.
@@ -82,7 +87,8 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 		WithConfig(cfg).
 		WithChallenge(challengeCfg).
 		WithAttempt(attemptCfg).
-		WithPassedPresenceToken(presenceTokenReceived). // Here we're obtaining the presence token from the DB.
+		WithPassedPresenceToken(freshNewPresenceToken.PresenceToken).
+		// Here we're obtaining the presence token from the DB.
 		WithCountryCheck(). // Calling the country check 'endpoint'
 		Complete()
 
@@ -101,8 +107,9 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 
 	// return response
 	jsonResp := map[string]interface{}{
-		"status":   "success",
-		"response": response,
+		"status":            "success",
+		"response":          response,
+		"presenceTokenUsed": freshNewPresenceToken.PresenceToken,
 	}
 
 	json.NewEncoder(w).Encode(jsonResp)

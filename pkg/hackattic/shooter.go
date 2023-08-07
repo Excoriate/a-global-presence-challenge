@@ -65,6 +65,7 @@ type AttemptRegisterDoc struct {
 	IsCompleted           bool   `firestore:"isCompleted"`
 	Status                string `firestore:"status"`
 	HackatticCountryCheck string `firestore:"hackatticCountryCheck"`
+	ShooterURl            string `firestore:"shooter_url"`
 }
 
 type Document struct {

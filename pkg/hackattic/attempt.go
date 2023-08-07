@@ -31,7 +31,7 @@ func (b *AttemptBuilder) WithChallenge(challenge *Challenge) *AttemptBuilder {
 	return b
 }
 
-type presenceTokenResponse struct {
+type PresenceTokenResponse struct {
 	PresenceToken string `json:"presence_token"`
 }
 
@@ -51,7 +51,7 @@ func (b *AttemptBuilder) WithNewPresenceToken() *AttemptBuilder {
 	defer body.Close()
 
 	// Decode the response.
-	var tokenResponse presenceTokenResponse
+	var tokenResponse PresenceTokenResponse
 	err = json.NewDecoder(body).Decode(&tokenResponse)
 	if err != nil {
 		b.Cfg.Logger.Error(fmt.Sprintf("Error decoding presence token response: %s", err.Error()))

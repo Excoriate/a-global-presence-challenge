@@ -1,6 +1,7 @@
 package trigger
 
 import (
+	"bytes"
 	"cloud.google.com/go/firestore"
 	"context"
 	"encoding/json"
@@ -15,6 +16,15 @@ import (
 
 func init() {
 	functions.HTTP("trigger", trigger)
+}
+
+func getPresences() []string {
+	// return regions where the functions are deployed
+	//function_url = [
+	//"https://europe-west4-labs-experiments-oss.cloudfunctions.net/a-global-presence-function-shooter",
+	//"https://us-central1-labs-experiments-oss.cloudfunctions.net/a-global-presence-function-shooter",
+	//]
+	return []string{"europe-west4", "us-central1"}
 }
 
 func sendErr(w http.ResponseWriter, status string, errs []error) {
@@ -95,6 +105,7 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 				"isCompleted":           false,
 				"status":                "trigger-init",
 				"hackatticCountryCheck": "",
+				"shooter_url":           "",
 			},
 		},
 		"status":           "pending",
@@ -108,10 +119,10 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call each shooter in a goroutine.
-	shooterURLs := []string{
-		"https://us-central1-a-global-presence-hackattic-db.cloudfunctions.net/shooter",
-		"https://us-central1-a-global-presence-hackattic-db.cloudfunctions.net/shooter",
-		"https://us-central1-a-global-presence-hackattic-db.cloudfunctions.net/shooter",
+	shooterURLs := []string{}
+	for _, region := range getPresences() {
+		shooterURLs = append(shooterURLs, fmt.Sprintf("https://%v-%v.cloudfunctions."+
+			"net/a-global-presence-function-shooter?presence_token=%s", region, cfg.ProjectId, attemptCfg.PresenceToken))
 	}
 
 	docs := client.Collection(cfg.ChallengeDoc).Where("status", "!=",
@@ -120,50 +131,91 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 	doc, err := docs.Next()
 
 	var firestoreDoc hackattic.Document
-
-	err = doc.DataTo(&attempt)
+	err = doc.DataTo(&firestoreDoc)
 
 	if err != nil {
 		cfg.Logger.Error(fmt.Sprintf("Failed to decode document: %v\n", err))
 		sendErr(w, "Failed to decode document", []error{err})
 	}
 
-	go func() {
-		for _, url := range shooterURLs {
-			shooterRespo, err := http.Get(url)
-			if err != nil {
-				cfg.Logger.Error(fmt.Sprintf("Failed to call shooter: %v\n", err))
-			}
-
-			defer shooterRespo.Body.Close()
-			cfg.Logger.Info(fmt.Sprintf("Shooter response: %v\n", shooterRespo))
-
-			responseJson := hackattic.ShooterResponse{}
-			err = json.NewDecoder(shooterRespo.Body).Decode(&responseJson)
-			if err != nil {
-				cfg.Logger.Error(fmt.Sprintf("Failed to decode shooter response: %v\n", err))
-			}
-
-			// Update the document
-			firestoreDoc.Attempts = append(firestoreDoc.Attempts, hackattic.AttemptRegisterDoc{
-				AttemptID:             utils.GetUUID(),
-				HackatticCountryCheck: responseJson.HackatticCountryCheck,
-				IsCompleted:           true,
-				PresenceToken:         attemptCfg.PresenceToken,
-				Status:                "hackattic-checked-ok",
-			})
+	counterSuccess := 0
+	for _, url := range shooterURLs {
+		// Expected response
+		//{"HackatticCountryCheck":"US","IsSuccessful":true,"Status":"checked","Error":null}
+		//{"response":{"HackatticCountryCheck":"US","IsSuccessful":true,"Status":"checked","Error":null},"status":"success"}
+		shooterRespo, err := challengeCfg.HttpClient.Get(url)
+		if err != nil {
+			cfg.Logger.Error(fmt.Sprintf("Failed to call shooter: %v\n", err))
 		}
 
-		return
-	}()
+		defer shooterRespo.Body.Close()
+		cfg.Logger.Info(fmt.Sprintf("Shooter response: %v\n", shooterRespo))
 
-	// Check responses
+		responseJson := hackattic.ShooterResponse{}
+		err = json.NewDecoder(shooterRespo.Body).Decode(&responseJson)
+		if err != nil {
+			cfg.Logger.Error(fmt.Sprintf("Failed to decode shooter response: %v\n", err))
+		}
+
+		// Update the document
+		firestoreDoc.Attempts = append(firestoreDoc.Attempts, hackattic.AttemptRegisterDoc{
+			AttemptID:             utils.GetUUID(),
+			HackatticCountryCheck: responseJson.HackatticCountryCheck,
+			IsCompleted:           true,
+			PresenceToken:         attemptCfg.PresenceToken,
+			Status:                "hackattic-checked-ok",
+			ShooterURl:            url,
+		})
+
+		// get new presence token
+		presenceTokenNew, _ := challengeCfg.HttpClient.Get(challengeCfg.APIGetPresenceToken)
+		defer presenceTokenNew.Body.Close()
+		presenteTOkenNewJson := hackattic.PresenceTokenResponse{}
+		err = json.NewDecoder(presenceTokenNew.Body).Decode(&presenteTOkenNewJson)
+		if err != nil {
+			cfg.Logger.Error(fmt.Sprintf("Failed to decode presence token: %v\n", err))
+		}
+
+		_, err = client.Collection(cfg.ChallengeDoc).Doc(result.ID).Set(ctx, firestoreDoc)
+		if err != nil {
+			cfg.Logger.Error(fmt.Sprintf("Failed to update document: %v\n", err))
+			sendErr(w, "Failed to update document", []error{err})
+		}
+
+		if responseJson.IsSuccessful {
+			counterSuccess++
+		}
+	}
+
+	// Make the final attempt to send an empty json {}
+	if counterSuccess >= 7 {
+		resp, err := challengeCfg.HttpClient.Post(challengeCfg.APISubmitSolution, "application/json", bytes.NewBuffer([]byte("{}")))
+		if err != nil {
+			cfg.Logger.Error(fmt.Sprintf("Failed to submit solution: %v\n", err))
+			sendErr(w, "Failed to submit solution", []error{err})
+		}
+
+		defer resp.Body.Close()
+		cfg.Logger.Info(fmt.Sprintf("Submit solution response: %v\n", resp))
+
+		// Check responses
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		jsonResp := map[string]string{
+			"status":     "The challenge is completed",
+			"documentId": result.ID,
+		}
+
+		json.NewEncoder(w).Encode(jsonResp)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	jsonResp := map[string]string{
-		"status":     "Document created successfully",
+		"status":     "The challenge is not completed",
 		"documentId": result.ID,
 	}
 
