@@ -4,4 +4,5 @@ use (
 	functions/trigger
 	functions/headers-faker
 	.
+	functions/shooter
 )

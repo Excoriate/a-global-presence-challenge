@@ -40,3 +40,8 @@ output "firestore_db_project" {
   value       = [for db in google_firestore_database.this : db.project]
   description = "The project in which the Firestore database is created"
 }
+
+output "project_id" {
+  value       = var.project_id
+  description = "The project in which the Firestore database is created"
+}

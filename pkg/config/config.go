@@ -9,16 +9,22 @@ import (
 )
 
 type Builder struct {
-	logger  *zap.Logger
-	Env     string
-	EnvVars map[string]string
-	Errors  []error
+	logger       *zap.Logger
+	Env          string
+	EnvVars      map[string]string
+	Errors       []error
+	ChallengeDB  string
+	ChallengeDoc string
+	ProjectId    string
 }
 
 type Config struct {
-	Env     string
-	Logger  *zap.Logger
-	EnvVars map[string]string
+	Env          string
+	Logger       *zap.Logger
+	EnvVars      map[string]string
+	ChallengeDB  string
+	ChallengeDoc string
+	ProjectId    string
 }
 
 func New() *Builder {
@@ -31,8 +37,40 @@ func (b *Builder) WithEnv(env string) *Builder {
 	b.Env = env
 	if b.Env == "" {
 		b.logger.Info("No environment specified, defaulting to prod")
-		b.Env = "prod"
+		b.Env = "sandbox"
 	}
+	return b
+}
+
+func (b *Builder) WithScannedEnvVars() *Builder {
+	b.EnvVars = make(map[string]string)
+	for _, envVar := range os.Environ() {
+		b.EnvVars[envVar] = os.Getenv(envVar)
+	}
+
+	return b
+}
+
+func (b *Builder) WithRequiredConfig() *Builder {
+	b.ChallengeDB = os.Getenv("CHALLENGE_DB_NAME")
+	b.ChallengeDoc = os.Getenv("CHALLENGE_DOC_NAME")
+	b.ProjectId = os.Getenv("PROJECT_ID")
+
+	if b.ChallengeDB == "" {
+		b.logger.Error("No CHALLENGE_DB_NAME specified")
+		b.Errors = append(b.Errors, errors.New("no CHALLENGE_DB_NAME specified"))
+	}
+
+	if b.ChallengeDoc == "" {
+		b.logger.Error("No CHALLENGE_DOC_NAME specified")
+		b.Errors = append(b.Errors, errors.New("no CHALLENGE_DOC_NAME specified"))
+	}
+
+	if b.ProjectId == "" {
+		b.logger.Error("No PROJECT_ID specified")
+		b.Errors = append(b.Errors, errors.New("no PROJECT_ID specified"))
+	}
+
 	return b
 }
 
@@ -67,8 +105,11 @@ func (b *Builder) Build() (*Config, error) {
 	}
 
 	return &Config{
-		Env:     b.Env,
-		Logger:  b.logger,
-		EnvVars: b.EnvVars,
+		Env:          b.Env,
+		Logger:       b.logger,
+		EnvVars:      b.EnvVars,
+		ProjectId:    b.ProjectId,
+		ChallengeDB:  b.ChallengeDB,
+		ChallengeDoc: b.ChallengeDoc,
 	}, nil
 }

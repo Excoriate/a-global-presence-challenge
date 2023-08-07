@@ -1,22 +1,22 @@
 resource "random_id" "this" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   byte_length = 6
 }
 
 resource "random_id" "sa" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   byte_length = 3
 }
 
 resource "google_service_account" "this" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   account_id   = substr(lower(format("sa-%s-%s", var.function_name, random_id.this[each.key].hex)), 0, 29)
   display_name = format("Service Account for %s", local.resource_name)
   project = data.google_project.this[each.key].project_id
 }
 
 resource "google_project_iam_binding" "firestore_editor" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   role     = "roles/datastore.user"
   members  = [
     "serviceAccount:${google_service_account.this[each.key].email}",
@@ -25,14 +25,14 @@ resource "google_project_iam_binding" "firestore_editor" {
 }
 
 resource "google_service_account_iam_member" "service_account_user" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   service_account_id = google_service_account.this[each.key].id
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.this[each.key].email}"
 }
 
 resource "google_project_iam_binding" "binding_service_account" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   role     = "roles/cloudfunctions.developer"
   members  = [
     "serviceAccount:${google_service_account.this[each.key].email}",
@@ -41,7 +41,7 @@ resource "google_project_iam_binding" "binding_service_account" {
 }
 
 resource "google_project_iam_binding" "this" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   role     = "roles/iam.serviceAccountUser"
   members  = [
     "serviceAccount:${google_service_account.this[each.key].email}",
@@ -51,13 +51,13 @@ resource "google_project_iam_binding" "this" {
 
 
 resource "time_sleep" "this" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   create_duration = "60s"
 }
 
 resource "google_cloud_run_service_iam_policy" "public" {
-  for_each = local.stack
-  location = var.location
+  for_each = local.stack_to_deploy
+  location = each.value["location"]
   project  = data.google_project.this[each.key].project_id
   service  = google_cloudfunctions2_function.this[each.key].name
 
@@ -65,9 +65,9 @@ resource "google_cloud_run_service_iam_policy" "public" {
 }
 
 resource "google_cloudfunctions2_function" "this" {
-  for_each = local.stack
+  for_each = local.stack_to_deploy
   name                  = local.resource_name
-  location = var.location
+  location = each.value["location"]
   description = format("Function for %s", local.resource_name)
   build_config {
     runtime               = var.runtime
@@ -79,7 +79,7 @@ resource "google_cloudfunctions2_function" "this" {
       }
     }
 
-    environment_variables = local.env_vars
+    environment_variables = local.env_vars_map
   }
 
 

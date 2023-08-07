@@ -48,7 +48,7 @@ variable "location" {
     create the resource name, so it should be a valid region or location name.
 E.g.:   "EU"
 EOF
-  default = "eur3"
+  default = "europe-west4"
 }
 
 variable "region" {
@@ -58,7 +58,7 @@ variable "region" {
     create the resource name, so it should be a valid region or location name.
 E.g.:   "eu-west1"
 EOF
-  default = "eu-west1"
+  default = "europe-west4"
 }
 
 variable "project_id"{

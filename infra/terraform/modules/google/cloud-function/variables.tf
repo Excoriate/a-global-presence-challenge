@@ -42,13 +42,13 @@ variable "environment" {
 }
 
 variable "location" {
-  type        = string
+  type        = list(string)
   description = <<EOF
     The region or location where the resource will be created. It is used to
     create the resource name, so it should be a valid region or location name.
 E.g.:   "EU"
 EOF
-  default = "europe-west4"
+  default = ["europe-west4"]
 }
 
 variable "region" {
@@ -111,9 +111,9 @@ EOF
 }
 
 variable "environment_variables" {
-  type        = map(string)
+  type        = list(map(string))
   description = <<EOF
 A map of environment variables that will be passed to the function. E.g.: {"ENV_VAR_1" = "value1", "ENV_VAR_2" = "value2"}
 EOF
-  default = {}
+  default = []
 }

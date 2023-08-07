@@ -40,3 +40,8 @@ output "function_url" {
   value       = [for f in google_cloudfunctions2_function.this : f.url]
   description = "URL of the function"
 }
+
+output "function_deploy_combinations" {
+  value       = [local.combinations]
+  description = "Combinations of locations and stacks."
+}
