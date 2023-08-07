@@ -61,6 +61,17 @@ tasks:
               export TF_VAR_access_token_env_var={{.ACCESS_TOKEN}} && \
               terragrunt {{.CLI_ARGS}}
 
+    tg-shooter:
+        desc: Deploy the shooter regional functions
+        dir: infra/terraform/stacks/cloud-function/shooter
+        cmds:
+            - |
+              export TF_VAR_environment="{{.ENVIRONMENT}}" && \
+              export TF_VAR_region={{.REGION}} && \
+              export TF_VAR_project_id="{{.PROJECT_ID}}" && \
+              export TF_VAR_access_token_env_var={{.ACCESS_TOKEN}} && \
+              terragrunt {{.CLI_ARGS}}
+
 
     function-compile:
         desc: Compile the function
