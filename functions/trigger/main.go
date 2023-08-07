@@ -19,11 +19,6 @@ func init() {
 }
 
 func getPresences() []string {
-	// return regions where the functions are deployed
-	//function_url = [
-	//"https://europe-west4-labs-experiments-oss.cloudfunctions.net/a-global-presence-function-shooter",
-	//"https://us-central1-labs-experiments-oss.cloudfunctions.net/a-global-presence-function-shooter",
-	//]
 	return []string{"europe-west4", "us-central1"}
 }
 
@@ -122,7 +117,7 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 	shooterURLs := []string{}
 	for _, region := range getPresences() {
 		shooterURLs = append(shooterURLs, fmt.Sprintf("https://%v-%v.cloudfunctions."+
-			"net/a-global-presence-function-shooter?presence_token=%s", region, cfg.ProjectId, attemptCfg.PresenceToken))
+			"net/a-global-presence-function-shooter", region, cfg.ProjectId))
 	}
 
 	docs := client.Collection(cfg.ChallengeDoc).Where("status", "!=",
