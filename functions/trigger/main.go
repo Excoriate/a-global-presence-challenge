@@ -84,10 +84,11 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 		"presenceToken": attemptCfg.PresenceToken,
 		"attempts": []map[string]interface{}{
 			{
-				"attempt_id":    utils.GetUUID(),
-				"presenceToken": attemptCfg.PresenceToken,
-				"isCompleted":   false,
-				"status":        "trigger-init",
+				"attempt_id":            utils.GetUUID(),
+				"presenceToken":         attemptCfg.PresenceToken,
+				"isCompleted":           false,
+				"status":                "trigger-init",
+				"hackatticCountryCheck": "",
 			},
 		},
 		"status":           "pending",
