@@ -107,6 +107,58 @@ func trigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Call each shooter in a goroutine.
+	shooterURLs := []string{
+		"https://us-central1-a-global-presence-hackattic-db.cloudfunctions.net/shooter",
+		"https://us-central1-a-global-presence-hackattic-db.cloudfunctions.net/shooter",
+		"https://us-central1-a-global-presence-hackattic-db.cloudfunctions.net/shooter",
+	}
+
+	docs := client.Collection(cfg.ChallengeDoc).Where("status", "!=",
+		"completed").OrderBy("status", firestore.Desc).Documents(ctx)
+
+	doc, err := docs.Next()
+
+	var firestoreDoc hackattic.Document
+
+	err = doc.DataTo(&attempt)
+
+	if err != nil {
+		cfg.Logger.Error(fmt.Sprintf("Failed to decode document: %v\n", err))
+		sendErr(w, "Failed to decode document", []error{err})
+	}
+
+	go func() {
+		for _, url := range shooterURLs {
+			shooterRespo, err := http.Get(url)
+			if err != nil {
+				cfg.Logger.Error(fmt.Sprintf("Failed to call shooter: %v\n", err))
+			}
+
+			defer shooterRespo.Body.Close()
+			cfg.Logger.Info(fmt.Sprintf("Shooter response: %v\n", shooterRespo))
+
+			responseJson := hackattic.ShooterResponse{}
+			err = json.NewDecoder(shooterRespo.Body).Decode(&responseJson)
+			if err != nil {
+				cfg.Logger.Error(fmt.Sprintf("Failed to decode shooter response: %v\n", err))
+			}
+
+			// Update the document
+			firestoreDoc.Attempts = append(firestoreDoc.Attempts, hackattic.AttemptRegisterDoc{
+				AttemptID:             utils.GetUUID(),
+				HackatticCountryCheck: responseJson.HackatticCountryCheck,
+				IsCompleted:           true,
+				PresenceToken:         attemptCfg.PresenceToken,
+				Status:                "hackattic-checked-ok",
+			})
+		}
+
+		return
+	}()
+
+	// Check responses
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 

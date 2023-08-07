@@ -31,6 +31,12 @@ func sendErr(w http.ResponseWriter, status string, errs []error) {
 }
 
 func shooter(w http.ResponseWriter, r *http.Request) {
+	presenceTokenReceived := r.URL.Query().Get("presence_token")
+	if presenceTokenReceived == "" {
+		sendErr(w, "No presence token received", []error{})
+		return
+	}
+
 	// Getting and building the configuration.
 	cfg, errs := config.New().
 		WithEnv(os.Getenv("ENVIRONMENT")).
@@ -42,6 +48,8 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 		sendErr(w, "Failed to build config", errs)
 		return
 	}
+
+	cfg.Logger.Info("Presence token received: " + presenceTokenReceived)
 
 	// Configure the Challenge attempt.
 	challengeClient := hackattic.New(cfg)
@@ -69,12 +77,12 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// New Shooter
-	shooter := hackattic.NewShooter()
-	shooterCfg, errs := shooter.
+	shooterInst := hackattic.NewShooter()
+	shooterCfg, errs := shooterInst.
 		WithConfig(cfg).
 		WithChallenge(challengeCfg).
 		WithAttempt(attemptCfg).
-		WithPresenceTokenFromDb(). // Here we're obtaining the presence token from the DB.
+		WithPassedPresenceToken(presenceTokenReceived). // Here we're obtaining the presence token from the DB.
 		WithCountryCheck(). // Calling the country check 'endpoint'
 		Complete()
 
@@ -83,14 +91,20 @@ func shooter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := shooterCfg.Register()
+	//result := shooterCfg.Register()
+	response := shooterCfg.Response
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Handle error
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	jsonResp := map[string]string{
-		"Status":  "Country check successfully registered",
-		"Country": result.HackatticCountryCheck,
+	// return response
+	jsonResp := map[string]interface{}{
+		"status":   "success",
+		"response": response,
 	}
 
 	json.NewEncoder(w).Encode(jsonResp)
 	return
-
 }

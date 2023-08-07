@@ -77,6 +77,17 @@ type Document struct {
 	Result           string               `firestore:"result"`
 }
 
+func (b *ShooterBuilder) WithPassedPresenceToken(token string) *ShooterBuilder {
+	if token == "" {
+		b.Cfg.Logger.Error("Empty presence token passed")
+		b.Errors = append(b.Errors, fmt.Errorf("empty presence token passed"))
+		return b
+	}
+
+	b.Attempt.PresenceToken = token
+	return b
+}
+
 func (b *ShooterBuilder) WithPresenceTokenFromDb() *ShooterBuilder {
 	ctx := context.Background()
 
