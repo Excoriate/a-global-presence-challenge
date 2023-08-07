@@ -14,4 +14,4 @@ environment_variables = [
 ]
 
 #location = ["europe-west4", "us-central1", "asia-east1", "asia-northeast1", "asia-southeast1", "australia-southeast1", "europe-north1", "europe-west1", "northamerica-northeast1", "southamerica-east1"]
-location = ["europe-west4", "us-central1"]
+location = ["europe-west4", "us-central1", "asia-east1", "australia-southeast1", "europe-north1", "europe-west1", "northamerica-northeast1", "asia-northeast1", "asia-southeast1"]

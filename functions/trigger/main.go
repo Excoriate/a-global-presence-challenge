@@ -19,7 +19,7 @@ func init() {
 }
 
 func getPresences() []string {
-	return []string{"europe-west4", "us-central1"}
+	return []string{"europe-west4", "us-central1", "asia-east1", "australia-southeast1", "europe-north1", "europe-west1", "northamerica-northeast1", "asia-northeast1", "asia-southeast1"}
 }
 
 func sendErr(w http.ResponseWriter, status string, errs []error) {
